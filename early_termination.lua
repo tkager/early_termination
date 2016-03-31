@@ -84,7 +84,7 @@ function tap.packet()
 			data_clean = string.gsub(tostring(http_data()), ":", "")
 			http_hdr_len = tonumber(string.find(data_clean, "0d0a0d0a") or string.find(data_clean, "0a0a0a0a"))
 			http[l_frame_number]["request_bytes"] = tostring(tcp_len()) - (((http_hdr_len -1)) /2 + 4)
-			http[l_frame_number]["response_bytes"] = ""
+			http[l_frame_number]["response_bytes"] = "0"
 			if http_content_length() ~= nil then
 				http[l_frame_number]["client_http_content_length"] = tostring(http_content_length())
 			else
@@ -99,12 +99,11 @@ function tap.packet()
 			track[stream]=l_frame_number
 
 		elseif http_response_code() ~= nil then
-
 			if http_request_in() ~= nil then
 				l_http_request_in = tostring(http_request_in())
 				data_clean = string.gsub(tostring(http_data()), ":", "")
 				http_hdr_len = tonumber(string.find(data_clean, "0d0a0d0a") or string.find(data_clean, "0a0a0a0a"))
-				http[l_http_request_in]["response_bytes"] = tostring(tcp_len()) - (((http_hdr_len -1) /2) + 4)
+				http[l_http_request_in]["response_bytes"] = http[l_http_request_in]["response_bytes"] + (tostring(tcp_len()) - (((http_hdr_len -1) /2) + 4))
 				http[l_http_request_in]["response_code"] = tostring(http_response_code())
 				if http_content_length() ~= nil then
 					http[l_http_request_in]["server_http_content_length"] = tostring(http_content_length())
@@ -114,9 +113,7 @@ function tap.packet()
 				http[l_http_request_in]["response_time"] = tostring(http_time())
 			end
 
-		else
-
-		if track[stream] ~= nil then
+		elseif track[stream] ~= nil then
 			tracked_frame = track[stream]
 
 			if tonumber(tostring(tcp_len())) > 0 then
@@ -137,15 +134,21 @@ function tap.packet()
 					end
 
 				end
+
 			else
 
 			end
 
+		else -- Not http_request_method http_response_code or tracked stream
+
 		end
 
+	else -- tcp.stream ~= nil
 
 	end
 
+
 end  -- end tap.packet
 
-end
+
+
