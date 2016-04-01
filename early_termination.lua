@@ -134,7 +134,6 @@ function tap.packet()
 					if http[tracked_frame]["client_reset"] == "" then
 						http[tracked_frame]["client_reset"] = string.format("%5.3f",tostring(frame_time_relative()))
 						if http[tracked_frame]["client_fin"] == "" then
-							print("hello")
 							http[tracked_frame]["reset_before_fin"] = "yes"
 						end
 					end
