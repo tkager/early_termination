@@ -3,7 +3,7 @@
 -- tkager@linux.com
 
 -- Created 3/24/2016
--- Last modified 3/25/16
+-- Last modified 4/1/16
 
 --[[
 
@@ -28,6 +28,7 @@ ip_dst=Field.new("ip.dst")
 tcp_stream=Field.new("tcp.stream")
 tcp_len=Field.new("tcp.len")
 tcp_flags_reset=Field.new("tcp.flags.reset")
+tcp_flags_fin=Field.new("tcp.flags.fin")
 http_request_method=Field.new("http.request.method")
 http_host=Field.new("http.host")
 http_request_uri=Field.new("http.request.uri")
@@ -47,8 +48,8 @@ print()
 print("---   HTTP Early Termination?")
 		print()
 
-		print(string.format("%-8s  %-15s  %-15s  %-20s  %-4s  %-20s  %-8s  %-8s  %-5s  %-8s  %-8s  %-7s  %-8s  %-8s", "Frame", "Client", "Server", "Host (last 20 bytes)", "Meth", "URI (first 20 bytes)", "C ConLen", "C ActLen", "Resp", "S ConLen", "S ActLen", "ReqTime", "RespTime", "RstTime"))
-		print(string.format("%-8s  %-15s  %-15s  %-20s  %-4s  %-20s  %-8s  %-8s  %-5s  %-8s  %-8s  %-7s  %-8s  %-8s", "--------", "---------------", "---------------", "--------------------", "----", "--------------------", "--------", "--------", "-----", "--------", "--------", "-------", "--------", "--------"))
+		print(string.format("%-8s  %-15s  %-15s  %-20s  %-4s  %-20s  %-8s  %-8s  %-5s  %-8s  %-8s  %-7s  %-8s  %-8s  %-6s", "Frame", "Client", "Server", "Host (last 20 bytes)", "Meth", "URI (first 20 bytes)", "C ConLen", "C ActLen", "Resp", "S ConLen", "S ActLen", "ReqTime", "RespTime", "RstTime", "B4 Fin?"))
+		print(string.format("%-8s  %-15s  %-15s  %-20s  %-4s  %-20s  %-8s  %-8s  %-5s  %-8s  %-8s  %-7s  %-8s  %-8s  %-6s", "--------", "---------------", "---------------", "--------------------", "----", "--------------------", "--------", "--------", "-----", "--------", "--------", "-------", "--------", "--------", "------" ))
 
 
 	correctorder = {} -- Create array for sorting. table.sort works on key values, not indexes
@@ -60,7 +61,7 @@ print("---   HTTP Early Termination?")
 
 	for k, v in pairs (correctorder) do
 		i = string.gsub(tostring(v) , " ", "")
-		print (string.format("%-8s  %-15s  %-15s  %20s  %-4s  %-20s  %8s  %8s  %-5s  %8s  %8s  %-7.3f  %-8.3f  %-8s", i, http[i]["client"], http[i]["server"], string.sub(http[i]["host"], -20), http[i]["method"], string.sub(http[i]["uri"], 1, 20), http[i]["client_http_content_length"], http[i]["request_bytes"], http[i]["response_code"], http[i]["server_http_content_length"], http[i]["response_bytes"], tonumber(http[i]["request_time"]), tonumber(http[i]["response_time"]), http[i]["client_reset"], http[i]["reset"]))
+		print (string.format("%-8s  %-15s  %-15s  %20s  %-4s  %-20s  %8s  %8s  %-5s  %8s  %8s  %-7.3f  %-8.3f  %-8s  %-6s", i, http[i]["client"], http[i]["server"], string.sub(http[i]["host"], -20), http[i]["method"], string.sub(http[i]["uri"], 1, 20), http[i]["client_http_content_length"], http[i]["request_bytes"], http[i]["response_code"], http[i]["server_http_content_length"], http[i]["response_bytes"], tonumber(http[i]["request_time"]), tonumber(http[i]["response_time"]), http[i]["client_reset"], http[i]["reset_before_fin"]))
 	end
 
 
@@ -95,7 +96,8 @@ function tap.packet()
 			http[l_frame_number]["response_code"] = "none"
 			http[l_frame_number]["response_time"] = 0
 			http[l_frame_number]["client_reset"] = ""
-			http[l_frame_number]["reset"] = ""
+			http[l_frame_number]["client_fin"] = ""
+			http[l_frame_number]["reset_before_fin"] = ""
 			track[stream]=l_frame_number
 
 		elseif http_response_code() ~= nil then
@@ -129,8 +131,25 @@ function tap.packet()
 
 				if tostring(ip_src()) == http[tracked_frame]["client"] then
 
-					if http[tracked_frame]["reset"] == "" then
+					if http[tracked_frame]["client_reset"] == "" then
 						http[tracked_frame]["client_reset"] = string.format("%5.3f",tostring(frame_time_relative()))
+						if http[tracked_frame]["client_fin"] == "" then
+							print("hello")
+							http[tracked_frame]["reset_before_fin"] = "yes"
+						end
+					end
+
+
+
+				end
+
+			elseif tostring(tcp_flags_fin()) == "1" then
+				tracked_frame = track[stream]
+
+				if tostring(ip_src()) == http[tracked_frame]["client"] then
+
+					if http[tracked_frame]["client_fin"] == "" then
+						http[tracked_frame]["client_fin"] = string.format("%5.3f",tostring(frame_time_relative()))
 					end
 
 				end
